@@ -1,8 +1,10 @@
+"use client";
 import React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/AppSidebar";
+import AppHeader from "./_components/AppHeader";
 function Provider({ children, ...props }) {
   return (
     <NextThemesProvider
@@ -14,9 +16,12 @@ function Provider({ children, ...props }) {
     >
       {" "}
       <SidebarProvider>
-        <AppSidebar/>
-         <SidebarTrigger />
-        <div>{children}</div>
+        <AppSidebar />
+
+        <div className="w-full">
+          <AppHeader />
+          {children}
+        </div>
       </SidebarProvider>
     </NextThemesProvider>
   );
