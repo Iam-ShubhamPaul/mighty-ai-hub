@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "./_components/AppSidebar";
@@ -7,17 +7,24 @@ import AppHeader from "./_components/AppHeader";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/config/FirebaseConfig";
 import { useUser } from "@clerk/nextjs";
+import { AiSelectedModelContext } from "@/context/AiSelectedModelContext";
+import { DefaultModel } from "@/shared/AiModelsShared";
+import { UserDetailContext } from "@/context/UserDetailContext";
 
 function Provider({ children, ...props }) {
-  const { user, isLoaded, isSignedIn } = useUser();  // ✅ FIXED
+  const { user, isLoaded, isSignedIn } = useUser(); // ✅ FIXED
 
-  useEffect(()=>{
-     if(user){
+  const [aiSelectedModels, setAiSelectedModels] = useState(DefaultModel);
+
+  const[userDetail , setUserDetail] =useState();
+
+  useEffect(() => {
+    if (user) {
       CreateNewUser();
-     }
-  },[user])
+    }
+  }, [user]);
 
-  const CreateNewUser =async () => {
+  const CreateNewUser = async () => {
     if (!isLoaded || !isSignedIn) return;
 
     const userRef = doc(
@@ -28,20 +35,24 @@ function Provider({ children, ...props }) {
 
     const userSnap = await getDoc(userRef);
 
-    if(userSnap.exists()){
+    if (userSnap.exists()) {
       console.log("Existing User");
+      const userInfo = userSnap.data();
+      setAiSelectedModels(userInfo?.selectedModlPref);
+      setUserDetail(userInfo);
       return;
     } else {
-      const userData={
-        name:user?.fullName,
-        email:user?.primaryEmailAddress?.emailAddress,
-        createdAt:new Date(),
-        reminaingMsg:5,  //Only for Free Users
-        plan:'Free',
-        credits:1000   // For Paid User
-      }
-      await setDoc(userRef , userData );
-      console.log('New User Data Saved');
+      const userData = {
+        name: user?.fullName,
+        email: user?.primaryEmailAddress?.emailAddress,
+        createdAt: new Date(),
+        reminaingMsg: 5, //Only for Free Users
+        plan: "Free",
+        credits: 1000, // For Paid User
+      };
+      await setDoc(userRef, userData);
+      console.log("New User Data Saved");
+      setUserDetail(userData);
     }
 
     console.log("User ref created:", userRef);
@@ -55,13 +66,19 @@ function Provider({ children, ...props }) {
       disableTransitionOnChange
       {...props}
     >
-      <SidebarProvider>
-        <AppSidebar />
-        <div className="w-full">
-          <AppHeader />
-          {children}
-        </div>
-      </SidebarProvider>
+      <UserDetailContext.Provider value={{userDetail , setUserDetail}}>
+        <AiSelectedModelContext.Provider
+          value={{ aiSelectedModels, setAiSelectedModels }}
+        >
+          <SidebarProvider>
+            <AppSidebar />
+            <div className="w-full">
+              <AppHeader />
+              {children}
+            </div>
+          </SidebarProvider>
+        </AiSelectedModelContext.Provider>
+      </UserDetailContext.Provider>
     </NextThemesProvider>
   );
 }
