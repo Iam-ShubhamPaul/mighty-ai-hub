@@ -18,6 +18,9 @@ import { db } from "@/config/FirebaseConfig";
 import moment from "moment";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import { useContext } from "react";
+import { AiSelectedModelContext } from "@/context/AiSelectedModelContext";
 
 export function AppSidebar() {
   const { theme, setTheme } = useTheme();
@@ -25,6 +28,9 @@ export function AppSidebar() {
   const { user } = useUser();
   const [chatHistory, setChatHistory] = useState([]);
   const router = useRouter();
+  const [freeMsgCount, setFreeMsgCount] = useState(0);
+  const { aiSelectedModels, setAiSelectedModels, messages, setMessages } =
+      useContext(AiSelectedModelContext);
 
   const handleNewChat = () => {
     // Redirect to home (fresh chat)
@@ -33,8 +39,12 @@ export function AppSidebar() {
 
   useEffect(() => {
     user && GetChatHistory();
+   
   }, [user]);
-
+ 
+  useEffect(()=>{
+      GetRemainingTokenMsg();
+  },[messages])
   const GetChatHistory = async () => {
     const q = query(
       collection(db, "chatHistory"),
@@ -88,6 +98,12 @@ export function AppSidebar() {
       message: lastUserMsg,
       lastMsgDate: formattedDate,
     };
+  };
+
+  const GetRemainingTokenMsg = async () => {
+    const result = await axios.post("/api/user-remaining-msg");
+    console.log(result);
+    setFreeMsgCount(result.data.remainingToken);
   };
 
   useEffect(() => {
@@ -190,7 +206,7 @@ export function AppSidebar() {
             </SignInButton>
           ) : (
             <div>
-              <UserCreditProgress />
+              <UserCreditProgress remainingToken={freeMsgCount} />
               <Button className={"w-full mb-3 "}>
                 {" "}
                 <Zap /> Upgrade Plan{" "}
