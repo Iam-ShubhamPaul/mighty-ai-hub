@@ -35,6 +35,24 @@ function ChatInputBox() {
   const handleSend = async () => {
     if (!userInput.trim()) return;
 
+    //Deduct and Check Token Limit
+    //Call Only when user is Free
+    const result = await axios.post("/api/user-remaining-msg",{
+      token:1
+    } );
+   
+    const remainingToken = result?.data?.remainingToken;
+
+    if(remainingToken<=0){
+
+      console.log("Limit Exceed");
+      toast.error('Maximum Daily Limit Exxceed')
+      return;
+
+    }
+
+    
+
     // 1️⃣ Add user message to all enabled models
     setMessages((prev) => {
       const updated = { ...prev };
@@ -188,5 +206,6 @@ function ChatInputBox() {
   );
 }
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 export default ChatInputBox;
