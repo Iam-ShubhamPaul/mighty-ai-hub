@@ -23,6 +23,7 @@ import { useUser } from "@clerk/nextjs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
+import { useSearchParams } from "next/navigation";
 
 // const cleanMarkdown = (text = "") => {
 //   return text
@@ -36,6 +37,8 @@ function AiMultiModels() {
   const [aiModelList, setAiModelList] = useState(AiModelList);
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } =
     useContext(AiSelectedModelContext);
+
+  
 
   const onToggleChange = (model, value) => {
     setAiModelList((prev) =>
