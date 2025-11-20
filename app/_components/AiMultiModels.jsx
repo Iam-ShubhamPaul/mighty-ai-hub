@@ -19,18 +19,11 @@ import { AiSelectedModelContext } from "@/context/AiSelectedModelContext";
 import { Value } from "@radix-ui/react-select";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/config/FirebaseConfig";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import { useSearchParams } from "next/navigation";
-
-// const cleanMarkdown = (text = "") => {
-//   return text
-//     .replace(/\r\n/g, "\n")          // normalize windows
-//     .replace(/\n{2,}/g, "\n")        // convert double+ newlines into ONE line
-//     .trim();
-// };
 
 function AiMultiModels() {
   const { user } = useUser();
@@ -38,7 +31,11 @@ function AiMultiModels() {
   const { aiSelectedModels, setAiSelectedModels, messages, setMessages } =
     useContext(AiSelectedModelContext);
 
-  
+  const { has } = useAuth(); 
+
+  // ⭐ SAFE WRAPPER → prevents "has is not a function" error
+  const checkPlan = (p) =>
+    typeof has === "function" ? has(p) : false;
 
   const onToggleChange = (model, value) => {
     setAiModelList((prev) =>
@@ -54,8 +51,6 @@ function AiMultiModels() {
     }));
   };
 
-  console.log(aiSelectedModels);
-
   const onSelectValue = async (parentModel, value) => {
     const newSelected = {
       ...aiSelectedModels,
@@ -64,9 +59,6 @@ function AiMultiModels() {
       },
     };
     setAiSelectedModels(newSelected);
-
-    // Update to Firebase Db with the new selected state (avoid stale state)
-    
   };
 
   return (
@@ -87,7 +79,7 @@ function AiMultiModels() {
                 height={24}
               />
 
-              {model.enable && (
+              {!checkPlan({ plan: "unlimited_plan" }) && model.enable && (
                 <Select
                   defaultValue={
                     aiSelectedModels?.[model.model]?.modelId ??
@@ -114,27 +106,30 @@ function AiMultiModels() {
                       </SelectLabel>
                       {model.subModel.map(
                         (subModel, i) =>
-                          subModel.premium == false && (
+                          subModel.premium === false && (
                             <SelectItem key={i} value={subModel.id}>
                               {subModel.name}
                             </SelectItem>
                           )
                       )}
                     </SelectGroup>
+
                     <SelectGroup className="p-3">
                       <SelectLabel className={"text-sm text-gray-400 "}>
                         Premium
                       </SelectLabel>
                       {model.subModel.map(
                         (subModel, i) =>
-                          subModel.premium == true && (
+                          subModel.premium === true && (
                             <SelectItem
                               key={i}
                               value={subModel.name}
                               disabled={subModel.premium}
                             >
-                              {subModel.name}{" "}
-                              {subModel.premium && <Lock className="h-4 w-4" />}
+                              {subModel.name}
+                              {subModel.premium && (
+                                <Lock className="h-4 w-4 inline ml-2" />
+                              )}
                             </SelectItem>
                           )
                       )}
@@ -148,6 +143,7 @@ function AiMultiModels() {
               {model.enable ? (
                 <Switch
                   checked={model.enable}
+                  disabled={!checkPlan({ plan: "unlimited_plan" }) && model.premium}
                   onCheckedChange={(v) => onToggleChange(model.model, v)}
                 />
               ) : (
@@ -158,48 +154,44 @@ function AiMultiModels() {
               )}
             </div>
           </div>
-          {model.premium && model.enable && (
-            <div className="flex items-center justify-center h-full ">
-              <Button>
-                {" "}
-                <Lock /> Upgrade to unlock
-              </Button>
-            </div>
-          )}
-          {model.enable && (
-            <div className="flex-1 p-4">
-              <div className="flex-1 p-4 space-y-2 ">
-                {messages[model.model]?.map((m, i) => (
-                  <div
-                    key={i}
-                    className={`p-2 rounded-md ${
-                      m.role == "user"
-                        ? "bg-blue-100 text-blue-900"
-                        : "bg-gray-100 text-gray-900"
-                    }`}
-                  >
-                    {m.role == "assistant" && (
-                      <span className="text-sm text-gray-800">
-                        {m.model ?? model.model}
-                      </span>
-                    )}
-                    <div className="flex gap-3 items-center">
-                      {/* {m.content == 'loading' && <> <Loader className="animate-spin" /><span>Thinking...</span> </>} */}
-                      {/* <Markdown remarkPlugins={[remarkGfm]}>
-                       
-                        {cleanMarkdown(m.content)} 
-                      </Markdown> */}
 
-                      {m.content}
-                      
-
-                      {/* {m.content !== 'loading' && <h2>{m.content}</h2> } */}
-                    </div>
-                  </div>
-                ))}
+          {!checkPlan({ plan: "unlimited_plan" }) &&
+            model.premium &&
+            model.enable && (
+              <div className="flex items-center justify-center h-full ">
+                <Button>
+                  <Lock /> Upgrade to unlock
+                </Button>
               </div>
-            </div>
-          )}
+            )}
+
+          {model.enable &&
+            (!model.premium || checkPlan({ plan: "unlimited_plan" })) && (
+              <div className="flex-1 p-4">
+                <div className="flex-1 p-4 space-y-2 ">
+                  {messages[model.model]?.map((m, i) => (
+                    <div
+                      key={i}
+                      className={`p-2 rounded-md ${
+                        m.role === "user"
+                          ? "bg-blue-100 text-blue-900"
+                          : "bg-gray-100 text-gray-900"
+                      }`}
+                    >
+                      {m.role === "assistant" && (
+                        <span className="text-sm text-gray-800">
+                          {m.model ?? model.model}
+                        </span>
+                      )}
+
+                      <div className="flex gap-3 items-center">
+                        {m.content}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
         </div>
       ))}
     </div>
@@ -207,3 +199,4 @@ function AiMultiModels() {
 }
 
 export default AiMultiModels;
+
